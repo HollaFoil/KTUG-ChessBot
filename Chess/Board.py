@@ -23,7 +23,7 @@ class Board:
     white_to_move = True
     checkmate = False
     stalemate = False
-    moves = 0
+    moves = 1
     halfmove_clock = 0
 
     can_castle_queen_black = True
@@ -409,6 +409,10 @@ class Board:
             new_piece = WHITE_QUEEN if promotion_piece == "" else pieces_from_letters[promotion_piece.upper()]
             self.set_piece(to_pos, new_piece)
 
+        #Check en passant target
+        if piece & PAWN > 0 and abs(y2 - y1) == 2:
+            self.en_passant_target = (x2, int((y1 + y2)/2))
+
         #If castled, move rook 
         if piece & KING > 0 and abs(x1 - x2) == 2:
             rook = WHITE_ROOK if self.is_piece_white(piece) else BLACK_ROOK
@@ -459,10 +463,7 @@ class Board:
             self.status = "Draw by repetition"
 
         print (fen)
-
-        #Finally, check for en passant
-        if piece & PAWN > 0 and abs(y2 - y1) == 2:
-            self.en_passant_target = (x2, int((y1 + y2)/2))
+        
 
         return True
     
@@ -537,17 +538,17 @@ class Board:
             castling += "K"
         if self.can_castle_queen_white:
             castling += "Q"
-        if self.can_castle_queen_black:
-            castling += "q"
         if self.can_castle_king_black:
             castling += "k"
+        if self.can_castle_queen_black:
+            castling += "q"
         if castling == "":
             castling = "-"
         fen += castling + " "
 
         if self.en_passant_target != (-1, -1):
             x, y = self.en_passant_target
-            fen += chr(ord('a') + x) + str(y) + " "
+            fen += chr(ord('a') + x) + str(8-y) + " "
         else:
             fen += "- "   
         fen += str(self.halfmove_clock) + " "

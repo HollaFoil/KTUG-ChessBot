@@ -18,7 +18,7 @@ class BoardState:
     moves = 0
     halfmove_clock = 0
     
-    def __init__(self, fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0", prevState = None, nextState = None, prev_move = [(-1, -1), (-1, -1)]):
+    def __init__(self, fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", prevState = None, nextState = None, prev_move = [(-1, -1), (-1, -1)]):
         self.nextState = nextState
         self.prevState = prevState
         self.prev_move = prev_move

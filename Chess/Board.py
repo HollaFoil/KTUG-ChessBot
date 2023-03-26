@@ -15,6 +15,7 @@ _check_mate_color = (255, 0, 0, 200)
 _stale_mate_color = (255, 240, 0, 150)
 class Board:
     status = "Begin"
+    should_send_fen = True
     selected_piece = (-1, -1)
     has_piece_selected = False
     holding_piece = False
@@ -377,7 +378,7 @@ class Board:
         moves = list(set(moves))
         return moves
 
-    def make_move(self, from_pos, to_pos):
+    def make_move(self, from_pos, to_pos, promotion_piece = ""):
         piece = self.get_piece(from_pos)
         piece_at = self.get_piece(to_pos)
         x1, y1 = from_pos
@@ -387,6 +388,7 @@ class Board:
         if not self.is_move_legal(from_pos, to_pos):
             return False
 
+        self.should_send_fen = True
         #Move piece, handle state (set en passant targets, mouse selection)
         self.set_piece(to_pos, piece)
         self.set_piece(from_pos, EMPTY)
@@ -401,9 +403,11 @@ class Board:
 
         #If pawn promotion
         if piece == BLACK_PAWN and y2 == 7:
-            self.set_piece(to_pos, BLACK_QUEEN)
+            new_piece = BLACK_QUEEN if promotion_piece == "" else pieces_from_letters[promotion_piece]
+            self.set_piece(to_pos, new_piece)
         if piece == WHITE_PAWN and y2 == 0:
-            self.set_piece(to_pos, WHITE_QUEEN)
+            new_piece = WHITE_QUEEN if promotion_piece == "" else pieces_from_letters[promotion_piece.upper()]
+            self.set_piece(to_pos, new_piece)
 
         #If castled, move rook 
         if piece & KING > 0 and abs(x1 - x2) == 2:

@@ -2,6 +2,7 @@ import select
 import sys
 import socket
 import pygame
+import re
 from pygame.locals import *
 from Chess.Board import Board
 
@@ -15,102 +16,203 @@ screen = pygame.display.set_mode((width, height))
  
 board = Board()
 
-human_mode = False
-white_socket_connect = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-black_socket_connect = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+white_sock = None
+black_sock = None
+white_should_connect = True
+black_should_connect = True
+readable_sockets = []
+is_engine_thinking = False
+paused = False
 
-# Game loop.
 
-#WHITE CONNECTS FIRST
-white_socket_connect.bind(('localhost',6969))
-white_socket_connect.listen(1)
-white_sock, addr = white_socket_connect.accept()
+def handle_event(event):
+  if event.type == QUIT:
+    pygame.quit()
+    sys.exit()
 
-black_socket_connect.bind(('localhost',6970))
-black_socket_connect.listen(1)
-black_sock, addr = black_socket_connect.accept()
+  if event.type == K_p:
+    paused = not paused
+    if is_engine_thinking:
+      pass #can implement sending of stop/go commands
 
-white_sock.setblocking(0)
-black_sock.setblocking(0)
 
-white_sock.send(board.generate_fen().encode())
+  if is_engine_thinking:
+    pass
 
-while True:
-  screen.fill((0, 0, 0))
+  if event.type == KEYDOWN:
+    if event.key == K_RIGHT:
+      board.key_right_event()
+    if event.key == K_LEFT:
+      board.key_left_event()
+
+  if board.checkmate or board.stalemate:
+    return
+  if event.type == MOUSEBUTTONDOWN:
+    board.on_mouse_down_event()
+  if event.type == MOUSEBUTTONUP:
+    board.on_mouse_up_event()
+
+
+pattern = re.compile("([a-h][1-8]){2}")
+def sanitize_input(input):
+  if len(input) != 4 and len(input) != 5:
+    return None
+  match = re.match(pattern, input)
+  if match == None:
+    return None
+  x1 = ord(input[0]) - ord('a')
+  y1 = 8 - int(input[1])
+  x2 = ord(input[2]) - ord('a')
+  y2 = 8 - int(input[3])
+  piece = ""
+  if len(input) == 5:
+    piece = input[4]
+    if "qnbr".count(piece) < 1:
+      return None
+  return [(x1, y1), (x2, y2), piece]
   
-  for event in pygame.event.get():
-    if event.type == QUIT:
-      pygame.quit()
-      sys.exit()
 
-    if not human_mode:
-      break
+def send_error(is_white, received = "Unknown"):
+  message = "Received illegal request by "
+  message += "white" if is_white else "black"
+  message += "\nReceived message: " + received
+  print(message)
+  s_in.send(b'ERROR')
 
-    if event.type == KEYDOWN:
-      if event.key == K_RIGHT:
-        board.key_right_event()
-      if event.key == K_LEFT:
-        board.key_left_event()
 
-    if board.checkmate or board.stalemate:
-      break
-    if event.type == MOUSEBUTTONDOWN:
-      board.on_mouse_down_event()
-    if event.type == MOUSEBUTTONUP:
-      board.on_mouse_up_event()
+def handle_request(s_in):
+  data = None
+  is_white = True if s_in == white_sock else False
+  try:
+    data = s_in.recv(1024)
+  except:
+    print('Connection error')
+    return False
 
-  ready_to_read, ready_to_write, in_error = \
-               select.select(
-                  [white_sock, black_sock],
-                  [],
-                  [],
-                  0.01)
+  if data == None or data == b'':
+    return False
 
-  result = False
-  for s_in in ready_to_read:
-    data = None
-    try:
-      data = s_in.recv(1024)
-    except:
-      print('Connection error')
+  print("Received message from " + ("white: " if is_white else "black: ") + data.decode())
 
-    if data == None or data == b'':
+  move = sanitize_input(data.decode())
+  if move == None:
+    send_error(is_white, data.decode())
+    return False
+
+  result = board.make_move(move[0], move[1], move[2])
+  if not result:
+    send_error(is_white, data.decode())
+  return result
+
+
+def send_fen():
+  s_in = white_sock if board.white_to_move else black_sock
+  if s_in == None:
+    return
+
+  print("Sending fen to " + "white" if s_in == white_sock else "black")
+  global is_engine_thinking
+  is_engine_thinking = True
+  fen = board.generate_fen()
+  s_in.send(fen.encode())
+
+
+def connect():
+  global white_should_connect
+  global black_should_connect
+  global white_sock
+  global black_sock
+  global readable_sockets
+
+  white_socket_connect = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  black_socket_connect = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+  white_socket_connect.bind(('localhost',6969))
+  black_socket_connect.bind(('localhost',6970))
+
+  if white_should_connect:
+    print("Waiting for white to connect...")
+    white_socket_connect.listen(1)
+    white_sock, _ = white_socket_connect.accept()
+    white_should_connect = False
+    print("White connected!")
+  if black_should_connect:
+    print("Waiting for black to connect...")
+    black_socket_connect.listen(1)
+    black_sock, _ = black_socket_connect.accept()
+    black_should_connect = False
+    print("Black connected!")
+
+  if white_sock != None:
+    white_sock.setblocking(0)
+    readable_sockets += [white_sock]
+  if black_sock != None:
+    black_sock.setblocking(0)
+    readable_sockets += [black_sock]
+
+
+def query_should_connect():
+  global white_should_connect
+  global black_should_connect
+  while True:
+    print("Is white an engine? (y/n): ", end='')
+    answer = input()
+    if answer != "y" and answer != "n":
+      print("Invalid answer")
       continue
+    white_should_connect = (answer == "y")
+    break
 
-    if s_in == white_sock:
-      str = data.decode()
-      try:
-        x1 = ord(str.split()[0][0]) - ord('a')
-        y1 = 8 - int(str.split()[0][1])
-        x2 = ord(str.split()[1][0]) - ord('a')
-        y2 = 8 - int(str.split()[1][1])
-        result = board.make_move((x1, y1), (x2, y2))
-        print(f'White: {x1=} {y1=} {x2=} {y2=}')
-        if not result:
-          raise
-      except:
-        s_in.send(b'ERROR')
-        print("Received illegal request by white")
-      
-    elif s_in == black_sock:
-      str = data.decode()
-      try:
-        x1 = ord(str.split()[0][0]) - ord('a')
-        y1 = 8 - int(str.split()[0][1])
-        x2 = ord(str.split()[1][0]) - ord('a')
-        y2 = 8 - int(str.split()[1][1])
-        result = board.make_move((x1, y1), (x2, y2))
-        if not result:
-          raise
-      except:
-        s_in.send(b'ERROR')
-        print("Received illegal request by black")
+  while True:
+    print("Is black an engine? (y/n): ", end='')
+    answer = input()
+    if answer != "y" and answer != "n":
+      print("Invalid answer")
+      continue
+    black_should_connect = (answer == "y")
+    break
 
-  if result:
-    sock = white_sock if board.white_to_move else black_sock
-    sock.send(board.generate_fen().encode())
 
+def init():
+  query_should_connect()
+
+  try:   
+    connect()
+  except:
+    print("Failed to connect engines")
+    input()
+    exit()
+
+
+def render():
+  screen.fill((0, 0, 0))
   pygame.display.set_caption(board.status)
   screen.blit(board.render_board(), (0,0))
   pygame.display.flip()
   fpsClock.tick(fps)
+
+
+render()
+print("Initializing game")
+init()
+send_fen()
+print("Game starting!")
+while True:
+  for event in pygame.event.get():
+    handle_event(event)
+
+  ready_to_read = []
+  if readable_sockets != []:
+    ready_to_read, _, _ = select.select(readable_sockets, [], [], 0.01)
+
+  for s_in in ready_to_read:
+    result = handle_request(s_in)
+    if result:
+      is_engine_thinking = False
+
+  if board.should_send_fen:
+    send_fen()
+    board.should_send_fen = False
+
+  render()
+

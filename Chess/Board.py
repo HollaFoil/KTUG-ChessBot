@@ -480,6 +480,8 @@ class Board:
 
         self.stop_clock()
         self.add_increment()
+        #Check if should revoke castling rights
+        self.check_for_castling(from_pos, to_pos)
 
         self.should_send_fen = True
         #Move piece, handle state (set en passant targets, mouse selection)
@@ -527,9 +529,6 @@ class Board:
         else:
             self.halfmove_clock += 1
 
-        #Check if should revoke castling rights
-        self.check_for_castling(from_pos, to_pos)
-
         #Generate fen, handle threefold repetition and history
         fen = self.generate_fen()
         self.history.add(fen, prev_move=self.prev_move).move_next()
@@ -563,24 +562,39 @@ class Board:
         return True
     
     def check_for_castling(self, moved_from_pos, moved_to_pos):
-        piece = self.get_piece(moved_to_pos)
-        is_white = self.is_piece_white(piece)
-        color = BLACK if is_white else WHITE
-        if piece == BLACK_KING:
+        piece_from = self.get_piece(moved_from_pos)
+        piece_to = self.get_piece(moved_to_pos)
+        is_white_from = self.is_piece_white(piece_from)
+        is_white_to = self.is_piece_white(piece_to)
+        color_from = BLACK if is_white_from else WHITE
+        color_to = BLACK if is_white_to else WHITE
+        if piece_from == BLACK_KING:
             self.can_castle_king_black = False
             self.can_castle_queen_black = False
-        if piece == WHITE_KING:
+        elif piece_from == WHITE_KING:
             self.can_castle_king_white = False
             self.can_castle_queen_white = False
-        if piece == BLACK_ROOK:
+
+        elif piece_from == BLACK_ROOK:
             if moved_from_pos == (0, 0):
                 self.can_castle_queen_black = False
-            if moved_from_pos == (7, 0):
+            elif moved_from_pos == (7, 0):
                 self.can_castle_king_black = False
-        if piece == WHITE_ROOK:
+        elif piece_from == WHITE_ROOK:
             if moved_from_pos == (0, 7):
                 self.can_castle_queen_white = False
-            if moved_from_pos == (7, 7):
+            elif moved_from_pos == (7, 7):
+                self.can_castle_king_white = False
+
+        elif piece_to == BLACK_ROOK:
+            if moved_to_pos == (0, 0):
+                self.can_castle_queen_black = False
+            elif moved_to_pos == (7, 0):
+                self.can_castle_king_black = False
+        elif piece_to == WHITE_ROOK:
+            if moved_to_pos == (0, 7):
+                self.can_castle_queen_white = False
+            elif moved_to_pos == (7, 7):
                 self.can_castle_king_white = False
 
     def load_from_state(self, state):

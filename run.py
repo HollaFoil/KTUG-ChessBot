@@ -29,6 +29,14 @@ paused = False
 
 def handle_event(event):
   if event.type == QUIT:
+    try:
+      white_sock.close()
+    except:
+      pass
+    try:
+      black_sock.close()
+    except:
+      pass
     pygame.quit()
     sys.exit()
 

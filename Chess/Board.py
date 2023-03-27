@@ -42,6 +42,7 @@ class Board:
     en_passant_target = (-1, -1)
     prev_move = [(-1, -1), (-1, -1)]
     positions = {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR": 1}
+    cached_moves = None
 
     increment = 3000            #milliseconds
     time_left_black = 5*60*1000 #milliseconds
@@ -85,8 +86,9 @@ class Board:
             surf.blit(s, self.get_location((x2, y2)))
 
         if self.has_piece_selected:
-            moves = self.get_possible_moves(self.selected_piece)
-            for (x, y) in moves:
+            if self.cached_moves == None:
+                self.cached_moves = self.get_possible_moves(self.selected_piece)
+            for (x, y) in self.cached_moves:
                 s = pygame.Surface((_piece_size,_piece_size), pygame.SRCALPHA)
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 file = int((mouse_x - _margin)/_piece_size)
@@ -209,6 +211,7 @@ class Board:
         clicked_x, clicked_y = pygame.mouse.get_pos()
         file = int((clicked_x - _margin)/_piece_size)
         rank = int((clicked_y - _margin)/_piece_size)
+        self.cached_moves = None
         if not ((0 <= file <= 7) and (0 <= rank <= 7)):
             return
         

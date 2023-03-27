@@ -11,10 +11,12 @@ pygame.init()
 fps = 60
 fpsClock = pygame.time.Clock()
  
-width, height = 784, 784
+width, height = 1085, 784
 screen = pygame.display.set_mode((width, height))
+pygame_icon = pygame.image.load("./Assets/icon.png")
+pygame.display.set_icon(pygame_icon)
  
-board = Board()
+board = Board(width, height)
 
 white_sock = None
 black_sock = None
@@ -23,7 +25,6 @@ black_should_connect = True
 readable_sockets = []
 is_engine_thinking = False
 paused = False
-
 
 def handle_event(event):
   if event.type == QUIT:
@@ -45,7 +46,7 @@ def handle_event(event):
     if event.key == K_LEFT:
       board.key_left_event()
 
-  if board.checkmate or board.stalemate:
+  if board.is_game_ended():
     return
   if event.type == MOUSEBUTTONDOWN:
     board.on_mouse_down_event()
@@ -83,6 +84,10 @@ def send_error(is_white, received = "Unknown"):
 def handle_request(s_in):
   data = None
   is_white = True if s_in == white_sock else False
+
+  if is_white == board.white_to_move:
+    board.stop_clock()
+
   try:
     data = s_in.recv(1024)
   except:
@@ -185,7 +190,7 @@ def init():
 
 
 def render():
-  screen.fill((0, 0, 0))
+  screen.fill((50, 50, 50))
   pygame.display.set_caption(board.status)
   screen.blit(board.render_board(), (0,0))
   pygame.display.flip()
@@ -209,10 +214,17 @@ while True:
     result = handle_request(s_in)
     if result:
       is_engine_thinking = False
+    else:
+      board.start_clock()
+
+  if not is_engine_thinking and not board.is_clock_ticking:
+    board.start_clock()
 
   if board.should_send_fen:
     send_fen()
+    board.start_clock()
     board.should_send_fen = False
 
+  board.tick_clock()
   render()
 

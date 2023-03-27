@@ -1,6 +1,7 @@
 import copy
 import os
 import pygame
+import datetime
 from .Constants import *
 from .MoveHistory import BoardState, MoveHistory
 
@@ -13,14 +14,22 @@ _possible_move_color = (40, 100, 40, 150)
 _check_color = (255, 0, 0, 100)
 _check_mate_color = (255, 0, 0, 200)
 _stale_mate_color = (255, 240, 0, 150)
+_black_time_location = (800, 25)
+_white_time_location = (800, 700)
 class Board:
     status = "Begin"
     should_send_fen = True
     selected_piece = (-1, -1)
     has_piece_selected = False
     holding_piece = False
+    width = 1000
+    height = 784
 
+
+    white_victory = False
     white_to_move = True
+    clock_win = False
+    draw_insufficient_material = False
     checkmate = False
     stalemate = False
     moves = 1
@@ -34,15 +43,32 @@ class Board:
     prev_move = [(-1, -1), (-1, -1)]
     positions = {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR": 1}
 
+    increment = 3000            #milliseconds
+    time_left_black = 5*60*1000 #milliseconds
+    time_left_white = 5*60*1000 #milliseconds
+    start_time_black = datetime.datetime.now()
+    start_time_white = datetime.datetime.now()
+    is_clock_ticking = False
+
     history = MoveHistory()
 
-    def __init__(self):
+    pygame.font.init()
+    text_font = pygame.font.Font('./Assets/Segoe UI Mono Bold.ttf', 55)
+
+    def __init__(self, width, height):
         self.board = copy.deepcopy(STARTING_POSITION)
         self.load_from_state(self.history.get_state())
         self.load_images()
+        self.width = width
+        self.height = height
+
+    def is_game_ended(self):
+        return self.clock_win or self.checkmate or self.stalemate or self.draw_insufficient_material
 
     def render_board(self):
-        surf = self.board_img.copy()
+        surf = pygame.Surface((self.width, self.height))
+        surf.fill((50, 50, 50))
+        surf.blit(self.board_img, (0, 0))
 
         if self.has_piece_selected:
             x, y = self.selected_piece
@@ -75,7 +101,7 @@ class Board:
                 s.set_alpha(_possible_move_color[3])
                 surf.blit(s, self.get_location((x, y)))
 
-        if self.is_in_check(BLACK):
+        if self.is_in_check(BLACK) or (self.clock_win and self.white_victory):
             color = _check_mate_color if self.checkmate else _stale_mate_color if self.stalemate else _check_color
             for file in range(8):
                 for rank in range(8):
@@ -86,7 +112,7 @@ class Board:
                     s.fill(color)  
                     surf.blit(s, self.get_location((file, rank)))
 
-        if self.is_in_check(WHITE):
+        if self.is_in_check(WHITE) or (self.clock_win and not self.white_victory):
             color = _check_mate_color if self.checkmate else _stale_mate_color if self.stalemate else _check_color
             for file in range(8):
                 for rank in range(8):
@@ -112,11 +138,72 @@ class Board:
             x, y = pygame.mouse.get_pos()
             surf.blit(self.piece_images[held_piece], (x - _piece_size/2, y-_piece_size/2))
 
+        surfaces = self.draw_ui_surf()
+        surf.blit(surfaces[0], _black_time_location)
+        surf.blit(surfaces[1], _white_time_location)
+
         return surf
+
+    def draw_ui_surf(self):
+        white_time_text = str(int((self.time_left_white / (60 * 1000)))) + ":" \
+                        + "{:0.3f}".format(self.time_left_white % (60 * 1000) / 1000).zfill(6)
+        black_time_text = str(int((self.time_left_black / (60 * 1000)))) + ":" \
+                        + "{:0.3f}".format(self.time_left_black % (60 * 1000) / 1000).zfill(6)
+        black_surface = self.text_font.render(black_time_text, True, (255, 255, 255))
+        white_surface = self.text_font.render(white_time_text, True, (255, 255, 255))
+        return [black_surface, white_surface]
 
     def get_location(self, pos):
         file, rank = pos
         return (_margin + _piece_size*file, _margin + _piece_size*rank)
+
+    def start_clock(self):
+        if self.is_clock_ticking:
+            return
+        if self.white_to_move:
+            self.start_time_white = datetime.datetime.now()
+        else:
+            self.start_time_black = datetime.datetime.now()
+        self.is_clock_ticking = True
+
+    def tick_clock(self):
+        self.stop_clock()
+        self.check_for_clock_win()
+        if not self.is_game_ended():
+            self.start_clock()
+
+    def check_for_clock_win(self):
+        if self.time_left_white <= 0:
+            self.clock_win = True
+            self.time_left_white = 0
+        elif self.time_left_black <= 0:
+            self.clock_win = True
+            self.white_victory = True
+            self.time_left_black = 0
+        if self.clock_win:
+            self.stop_clock()
+            self.status = ("White" if self.white_victory else "Black") + " win by timeout"
+
+
+    def stop_clock(self):
+        if not self.is_clock_ticking:
+            return
+        time_now = datetime.datetime.now()
+        if self.white_to_move:
+            elapsed_time = time_now - self.start_time_white
+            elapsed_milliseconds = np.floor(elapsed_time.total_seconds()*1000)
+            self.time_left_white -= elapsed_milliseconds
+        else:
+            elapsed_time = time_now - self.start_time_black
+            elapsed_milliseconds = np.floor(elapsed_time.total_seconds()*1000)
+            self.time_left_black -= elapsed_milliseconds
+        self.is_clock_ticking = False
+
+    def add_increment(self):
+        if self.white_to_move:
+            self.time_left_white += self.increment
+        else:
+            self.time_left_black += self.increment
 
     def on_mouse_down_event(self):
         clicked_x, clicked_y = pygame.mouse.get_pos()
@@ -391,6 +478,9 @@ class Board:
         if not self.is_move_legal(from_pos, to_pos):
             return False
 
+        self.stop_clock()
+        self.add_increment()
+
         self.should_send_fen = True
         #Move piece, handle state (set en passant targets, mouse selection)
         self.set_piece(to_pos, piece)
@@ -452,7 +542,9 @@ class Board:
         self.status = fen
 
         #Handle game result
-        if len(moves) == 0 and is_in_check:
+        if self.clock_win:
+            self.status = ("White" if self.white_victory else "Black") + " win by timeout"
+        elif len(moves) == 0 and is_in_check:
             self.checkmate = True
             self.status = "Checkmate"
         elif len(moves) == 0 and not is_in_check:
@@ -555,7 +647,9 @@ class Board:
         else:
             fen += "- "   
         fen += str(self.halfmove_clock) + " "
-        fen += str(self.moves)
+        fen += str(self.moves) + " "
+        fen += str(int(self.time_left_white)) + " "
+        fen += str(int(self.time_left_black))
         return fen 
 
 

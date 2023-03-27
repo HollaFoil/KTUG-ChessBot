@@ -220,7 +220,7 @@ while True:
   if not is_engine_thinking and not board.is_clock_ticking:
     board.start_clock()
 
-  if board.should_send_fen:
+  if board.should_send_fen and not board.is_game_ended():
     send_fen()
     board.start_clock()
     board.should_send_fen = False

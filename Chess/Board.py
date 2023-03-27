@@ -253,11 +253,18 @@ class Board:
 
         legal_moves = []
         for move in moves:
+            x1, y1 = frompos
+            x2, y2 = move
             piece_at = self.get_piece(move)
             self.set_piece(move, piece)
             self.set_piece(frompos, EMPTY)
+            if piece & PAWN > 0 and move == self.en_passant_target:
+                self.set_piece((x2, y1), EMPTY)
+
             if not self.is_in_check(color):
                 legal_moves += [move]
+            if piece & PAWN > 0 and move == self.en_passant_target:
+                self.set_piece((x2, y1), BLACK_PAWN if is_white else WHITE_PAWN)
             self.set_piece(move, piece_at)
             self.set_piece(frompos, piece)
 

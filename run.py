@@ -1,3 +1,4 @@
+#Compile with: pyinstaller --onefile run.py --icon Assets/icon.png --name "ChessBot Board"
 import select
 import sys
 import socket
@@ -35,7 +36,6 @@ def handle_event(event):
     paused = not paused
     if is_engine_thinking:
       pass #can implement sending of stop/go commands
-
 
   if is_engine_thinking:
     pass

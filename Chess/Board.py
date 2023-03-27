@@ -363,6 +363,9 @@ class Board:
         if self.selected_piece == (file, rank):
             return
         
+        if file > 7 or rank > 7 or file < 0 or rank < 0:
+            return
+
         self.make_move(self.selected_piece, (file, rank))
 
     def get_all_moves(self, color, checks = False):
@@ -429,7 +432,7 @@ class Board:
         is_in_check = self.is_in_check(color)
         if color == WHITE:
             self.moves += 1
-        if piece == PAWN or piece_at != EMPTY:
+        if piece & PAWN > 0 or piece_at != EMPTY:
             self.halfmove_clock = 0
         else:
             self.halfmove_clock += 1

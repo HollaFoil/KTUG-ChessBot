@@ -8,7 +8,7 @@ from Chess.Board import Board
 
 pygame.init()
  
-fps = 60
+fps = 144
 fpsClock = pygame.time.Clock()
  
 width, height = 1085, 784

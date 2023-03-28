@@ -232,7 +232,7 @@ def render():
 render()
 print("Initializing game")
 init()
-send_fen()
+#send_fen()
 print("Game starting!")
 while True:
   for event in pygame.event.get():

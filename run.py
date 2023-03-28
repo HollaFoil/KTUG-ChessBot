@@ -1,8 +1,10 @@
 #Compile with: pyinstaller --onefile run.py --icon Assets/icon.png --name "ChessBot Board"
+import os
 import select
 import sys
 import socket
 import pygame
+import configparser
 import re
 from pygame.locals import *
 from Chess.Board import Board
@@ -167,6 +169,20 @@ def connect():
 def query_should_connect():
   global white_should_connect
   global black_should_connect
+  config = configparser.ConfigParser()
+  should_always_ask = False
+  try:
+    if os.path.exists("config.txt"):
+      config.read("config.txt")
+      if config.getboolean("LAUNCH SETTINGS", "Should_Always_Ask"):
+        should_always_ask = True
+        raise
+      white_should_connect = config.getboolean("LAUNCH SETTINGS", "White_Is_Engine")
+      black_should_connect = config.getboolean("LAUNCH SETTINGS", "Black_Is_Engine")
+      return
+  except:
+    pass
+
   while True:
     print("Is white an engine? (y/n): ", end='')
     answer = input()
@@ -184,6 +200,11 @@ def query_should_connect():
       continue
     black_should_connect = (answer == "y")
     break
+  config["LAUNCH SETTINGS"] = {'White_Is_Engine': white_should_connect, 
+                               'Black_Is_Engine': black_should_connect,
+                               'Should_Always_Ask': should_always_ask}
+  with open("config.txt", 'w') as configfile:
+    config.write(configfile)
 
 
 def init():

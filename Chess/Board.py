@@ -2,6 +2,7 @@ import copy
 import os
 import pygame
 import datetime
+import cv2
 from .Constants import *
 from .MoveHistory import BoardState, MoveHistory
 
@@ -16,6 +17,15 @@ _check_mate_color = (255, 0, 0, 200)
 _stale_mate_color = (255, 240, 0, 150)
 _black_time_location = (800, 25)
 _white_time_location = (800, 700)
+
+from pygame import gfxdraw
+
+def drawAACircle(surf, color, center, radius, offset=0):
+    circle_image = np.zeros((radius*2+4, radius*2+4, 4), dtype = np.uint8)
+    circle_image = cv2.circle(circle_image, (radius+2, radius+2), offset, color, thickness=2*(radius-2), lineType=cv2.LINE_AA)  
+    circle_surface = pygame.image.frombuffer(circle_image.flatten(), (radius*2+4, radius*2+4), 'RGBA')
+    surf.blit(circle_surface, circle_surface.get_rect(center = center))
+
 class Board:
     status = "Begin"
     should_send_fen = True
@@ -96,11 +106,13 @@ class Board:
                 if (file, rank) == (x, y):
                     pygame.draw.rect(s, _possible_move_color, pygame.rect.Rect(0, 0, _piece_size, _piece_size))
                 elif self.board[x][y] == EMPTY:
-                    pygame.draw.circle(s, _possible_move_color, (_piece_size/2,_piece_size/2), 13)
+                    drawAACircle(s, _possible_move_color, (int(_piece_size/2), int(_piece_size/2)), 13)
+                    #draw_circle(s, int(_piece_size/2), int(_piece_size/2), 13, _possible_move_color)
+                    #pygame.draw.circle(s, _possible_move_color, (_piece_size/2,_piece_size/2), 13)
                 else:
-                    pygame.draw.rect(s, _possible_move_color, pygame.rect.Rect(0, 0, _piece_size, _piece_size))
-                    pygame.draw.circle(s, (0,0,0,0), (_piece_size/2,_piece_size/2), 54)
-                s.set_alpha(_possible_move_color[3])
+                    drawAACircle(s, _possible_move_color, (int(_piece_size/2), int(_piece_size/2)), 47, 100)
+                    #pygame.draw.circle(s, (0,0,0,0), (_piece_size/2,_piece_size/2), 54)
+                #s.set_alpha(_possible_move_color[3])
                 surf.blit(s, self.get_location((x, y)))
 
         if self.is_in_check(BLACK) or (self.clock_win and self.white_victory):

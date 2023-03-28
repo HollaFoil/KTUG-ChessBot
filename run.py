@@ -142,6 +142,9 @@ def connect():
   white_socket_connect = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   black_socket_connect = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+  white_socket_connect.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+  black_socket_connect.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
   white_socket_connect.bind(('localhost',6969))
   black_socket_connect.bind(('localhost',6970))
 

@@ -509,7 +509,7 @@ class Board:
         #Move piece, handle state (set en passant targets, mouse selection)
         self.set_piece(to_pos, piece)
         self.set_piece(from_pos, EMPTY)
-        if piece == PAWN and to_pos == self.en_passant_target:
+        if piece & PAWN > 0 and to_pos == self.en_passant_target:
             self.set_piece((x2, y1), EMPTY)
         self.prev_move = [(x1,y1), (x2,y2)]
         self.white_to_move = not self.white_to_move

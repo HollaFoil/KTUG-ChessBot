@@ -115,7 +115,7 @@ class Board:
                 #s.set_alpha(_possible_move_color[3])
                 surf.blit(s, self.get_location((x, y)))
 
-        if self.is_in_check(BLACK) or (self.clock_win and self.white_victory):
+        if self.is_in_check(BLACK) or (self.clock_win and self.white_victory) or self.stalemate:
             color = _check_mate_color if self.checkmate else _stale_mate_color if self.stalemate else _check_color
             for file in range(8):
                 for rank in range(8):
@@ -126,7 +126,7 @@ class Board:
                     s.fill(color)  
                     surf.blit(s, self.get_location((file, rank)))
 
-        if self.is_in_check(WHITE) or (self.clock_win and not self.white_victory):
+        if self.is_in_check(WHITE) or (self.clock_win and not self.white_victory) or self.stalemate:
             color = _check_mate_color if self.checkmate else _stale_mate_color if self.stalemate else _check_color
             for file in range(8):
                 for rank in range(8):
@@ -633,12 +633,20 @@ class Board:
 
     def key_right_event(self):
         if self.history.has_next():
+            self.cached_moves = None
+            self.has_piece_selected = False
+            self.holding_piece = False
+            selected_piece = (-1, -1)
             self.load_from_state(self.history.move_next().get_state())
             position = self.history.get_state().fen.split()[0]
             self.positions[position] += 1
 
     def key_left_event(self):
         if self.history.has_prev():
+            self.cached_moves = None
+            self.has_piece_selected = False
+            self.holding_piece = False
+            selected_piece = (-1, -1)
             position = self.history.get_state().fen.split()[0]
             self.positions[position] -= 1
             self.load_from_state(self.history.move_prev().get_state())

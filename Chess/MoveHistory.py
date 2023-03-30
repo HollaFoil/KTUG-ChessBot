@@ -51,7 +51,8 @@ class BoardState:
             self.en_passant_target = (-1, -1)
         else:
             file = ord(parts[3][0])-ord('a')
-            rank = int(parts[3][1])
+            rank = 8 - int(parts[3][1])
+            self.en_passant_target = (file, rank)
         self.halfmove_clock = int(parts[4])
         self.moves = int(parts[5])
     

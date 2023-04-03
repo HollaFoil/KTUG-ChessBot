@@ -66,7 +66,9 @@ class Board:
     pygame.font.init()
     text_font = pygame.font.Font('./Assets/Segoe UI Mono Bold.ttf', 55)
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, default_pos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"):
+        self.positions = {default_pos.split()[0]: 1}
+        self.history = MoveHistory(default_pos)
         self.board = copy.deepcopy(STARTING_POSITION)
         self.load_from_state(self.history.get_state())
         self.load_images()
@@ -115,8 +117,8 @@ class Board:
                 #s.set_alpha(_possible_move_color[3])
                 surf.blit(s, self.get_location((x, y)))
 
-        if self.is_in_check(BLACK) or (self.clock_win and self.white_victory) or self.stalemate:
-            color = _check_mate_color if self.checkmate else _stale_mate_color if self.stalemate else _check_color
+        if self.is_in_check(BLACK) or (self.clock_win and self.white_victory) or self.stalemate or self.draw_insufficient_material:
+            color = _check_mate_color if self.checkmate else _stale_mate_color if (self.stalemate or self.draw_insufficient_material) else _check_color
             for file in range(8):
                 for rank in range(8):
                     piece = self.board[file][rank]
@@ -126,8 +128,8 @@ class Board:
                     s.fill(color)  
                     surf.blit(s, self.get_location((file, rank)))
 
-        if self.is_in_check(WHITE) or (self.clock_win and not self.white_victory) or self.stalemate:
-            color = _check_mate_color if self.checkmate else _stale_mate_color if self.stalemate else _check_color
+        if self.is_in_check(WHITE) or (self.clock_win and not self.white_victory) or self.stalemate or self.draw_insufficient_material:
+            color = _check_mate_color if self.checkmate else _stale_mate_color if (self.stalemate or self.draw_insufficient_material) else _check_color
             for file in range(8):
                 for rank in range(8):
                     piece = self.board[file][rank]
@@ -186,17 +188,46 @@ class Board:
         if not self.is_game_ended():
             self.start_clock()
 
+    def count_material(self, is_white):
+        material = {'k':0, 'n':0, 'b':0, 'r':0, 'p':0, 'q':0}
+        for file in range(8):
+            for rank in range(8):
+                piece = self.get_piece((file, rank))
+                if piece == EMPTY or (piece & BLACK == 0) == is_white:
+                    continue
+                material[letters[piece].lower()] += 1
+        return material
+
+    def is_sufficient_material(self, is_white):
+        material = self.count_material(is_white)
+        return material['p'] > 0 or material['r'] > 0 or material['q'] > 0 or material['b'] > 1 or (material['n'] > 0 and material['b'] > 0) or material['n'] > 1
+
     def check_for_clock_win(self):
         if self.time_left_white <= 0:
-            self.clock_win = True
-            self.time_left_white = 0
+            sufficient = self.is_sufficient_material(False)
+            if not sufficient:
+                self.draw_insufficient_material = True
+                self.time_left_white = 0
+            else:
+                self.clock_win = True
+                self.time_left_white = 0
         elif self.time_left_black <= 0:
-            self.clock_win = True
-            self.white_victory = True
-            self.time_left_black = 0
+            sufficient = self.is_sufficient_material(True)
+            if not sufficient:
+                self.draw_insufficient_material = True
+                self.time_left_black = 0
+            else:
+                self.clock_win = True
+                self.white_victory = True
+                self.time_left_black = 0
+
+
         if self.clock_win:
             self.stop_clock()
             self.status = ("White" if self.white_victory else "Black") + " win by timeout"
+        if self.draw_insufficient_material:
+            self.stop_clock()
+            self.status = "Insufficient mating material"
 
 
     def stop_clock(self):
@@ -562,9 +593,16 @@ class Board:
 
         self.status = fen
 
+        #Check if sufficient material
+        if not self.is_sufficient_material(False) and not self.is_sufficient_material(True):
+            self.draw_insufficient_material = True
+            self.status = "Insufficient mating material"
+
         #Handle game result
         if self.clock_win:
             self.status = ("White" if self.white_victory else "Black") + " win by timeout"
+        elif self.draw_insufficient_material:
+            self.status = "Insufficient mating material"
         elif len(moves) == 0 and is_in_check:
             self.checkmate = True
             self.status = "Checkmate"

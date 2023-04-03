@@ -9,17 +9,7 @@ import re
 from pygame.locals import *
 from Chess.Board import Board
 
-pygame.init()
- 
-fps = 144
-fpsClock = pygame.time.Clock()
- 
-width, height = 1085, 784
-screen = pygame.display.set_mode((width, height))
-pygame_icon = pygame.image.load("./Assets/icon.png")
-pygame.display.set_icon(pygame_icon)
- 
-board = Board(width, height)
+
 
 white_sock = None
 black_sock = None
@@ -169,9 +159,12 @@ def connect():
     readable_sockets += [black_sock]
 
 
+default_position = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 def query_should_connect():
   global white_should_connect
   global black_should_connect
+  global default_position
   config = configparser.ConfigParser()
   should_always_ask = False
   try:
@@ -182,6 +175,7 @@ def query_should_connect():
         raise
       white_should_connect = config.getboolean("LAUNCH SETTINGS", "White_Is_Engine")
       black_should_connect = config.getboolean("LAUNCH SETTINGS", "Black_Is_Engine")
+      default_position = config["LAUNCH SETTINGS"]["Default_Position"]
       return
   except:
     pass
@@ -205,7 +199,8 @@ def query_should_connect():
     break
   config["LAUNCH SETTINGS"] = {'White_Is_Engine': white_should_connect, 
                                'Black_Is_Engine': black_should_connect,
-                               'Should_Always_Ask': should_always_ask}
+                               'Should_Always_Ask': should_always_ask,
+                               'Default_Position': "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"}
   with open("config.txt", 'w') as configfile:
     config.write(configfile)
 
@@ -229,11 +224,22 @@ def render():
   fpsClock.tick(fps)
 
 
-render()
-print("Initializing game")
 init()
-#send_fen()
+pygame.init()
+ 
+fps = 144
+fpsClock = pygame.time.Clock()
+ 
+width, height = 1085, 784
+screen = pygame.display.set_mode((width, height))
+pygame_icon = pygame.image.load("./Assets/icon.png")
+pygame.display.set_icon(pygame_icon)
+board = Board(width, height, default_position)
+
+print("Initializing game")
+render()
 print("Game starting!")
+
 while True:
   for event in pygame.event.get():
     handle_event(event)

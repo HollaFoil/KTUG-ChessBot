@@ -59,8 +59,8 @@ class BoardState:
 class MoveHistory:
     current_state = BoardState()
 
-    def __init__(self):
-        pass
+    def __init__(self, starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"):
+        self.current_state = BoardState(starting_fen)
     def has_next(self):
         return self.current_state.nextState != None
     def has_prev(self):
